@@ -1,0 +1,1824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>"bvcxbcxb54353"</title>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js" defer></script>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <script>
+    const FC__KEYS = {
+      SPACE: " ",
+      ENTER: "Enter",
+      ARROW_DOWN: "ArrowDown",
+      ARROW_UP: "ArrowUp",
+      ESCAPE: "Escape",
+    };
+
+    const FC__CLASSES = {
+      FC_FORM: 'fc--form',
+      DROPDOWN_OPEN: "fc--dropdown--open",
+    };
+
+    const FC__SELECTORS = {
+      DROPDOWN: ".fc--dropdown",
+      DROPDOWN_OPEN: `.${FC__CLASSES.DROPDOWN_OPEN}`,
+      DROPDOWN_MENU: ".fc--dropdown__menu",
+      DROPDOWN_MENU_ITEM: ".fc--dropdown__menu-item",
+      DROPDOWN_FIELD: ".fc--dropdown__field",
+      DROPDOWN_FIELD_VALUE: ".fc--dropdown__field-value",
+      DROPDOWN_SELECT: ".fc--dropdown__select",
+      SUBMIT_BUTTON: ".fc--submit-button",
+      LOADING_INDICATOR: ".fc--loading__svg",
+      SUBMIT_TEXT: ".fc--submit-text",
+      RECAPTCHA_ERROR: ".fc--recaptcha-error"
+    };
+
+    const FC__SUBMISSION_MESSAGE = {
+      SUCCESS: 'The form has been sent.',
+      ERROR: 'The form submission failed. Try again later.',
+    };
+
+    class fc__Toast extends HTMLElement {
+      static get observedAttributes() {
+        return ['data-type', 'data-title', 'data-message'];
+      }
+
+      static TIMEOUT = 5000;
+      static SUCCESS = 'success';
+      static ERROR = 'error';
+
+      static ICONS_MAP = {
+        [fc__Toast.SUCCESS]:
+          '<svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8,1C4.1,1,1,4.1,1,8c0,3.9,3.1,7,7,7s7-3.1,7-7C15,4.1,11.9,1,8,1z M7,11L4.3,8.3l0.9-0.8L7,9.3l4-3.9l0.9,0.8L7,11z"></path><path d="M7,11L4.3,8.3l0.9-0.8L7,9.3l4-3.9l0.9,0.8L7,11z" data-icon-path="inner-path" opacity="0"></path><title>notification</title></svg>',
+        [fc__Toast.ERROR]:
+          '<svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8,1C4.1,1,1,4.1,1,8s3.1,7,7,7s7-3.1,7-7S11.9,1,8,1z M10.7,11.5L4.5,5.3l0.8-0.8l6.2,6.2L10.7,11.5z"></path><path fill="none" d="M10.7,11.5L4.5,5.3l0.8-0.8l6.2,6.2L10.7,11.5z" data-icon-path="inner-path" opacity="0"></path><title>notification</title></svg>',
+        CLOSE:
+          '<svg focusable="false" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="20" height="20" viewBox="0 0 32 32" aria-hidden="true"><path d="M24 9.4L22.6 8 16 14.6 9.4 8 8 9.4 14.6 16 8 22.6 9.4 24 16 17.4 22.6 24 24 22.6 17.4 16 24 9.4z"></path></svg>',
+      };
+
+      static TOAST_MARKUP = `
+        <dialog class="toast">
+          <div class="toast__icon"></div>
+          <header class="toast__title"></header>
+          <p class="toast__message"></p>
+          <button class="toast__close-button">${fc__Toast.ICONS_MAP.CLOSE}</button>
+        </dialog>
+      `
+
+      static STYLE_MARKUP = `
+        <style>
+          .toast {
+            font-family: "National 2", sans-serif;
+            width: 100%;
+            background: #424564;
+            color: white;
+            min-height: 3rem;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding: 0;
+          }
+
+          .toast__title,
+          .toast__message {
+            font-size: 0.875rem;
+            line-height: 1.125rem;
+            letter-spacing: 0.16px;
+            display: flex;
+            align-items: center;
+          }
+
+          .toast__title {
+            font-weight: bold;
+            margin-right: 6px;
+          }
+
+          .toast__icon,
+          .toast__close-button {
+            width: 3rem;
+            height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+
+          .toast__close-button {
+            margin-left: auto;
+            border: none;
+            background: none;
+            cursor: pointer;
+          }
+
+          .toast__close-button:active,
+          .toast__close-button:focus {
+            outline: 2px solid #ffffff;
+            outline-offset: -2px;
+          }
+
+          .toast__close-button > svg {
+            color: white;
+          }
+
+          .toast::before {
+            content: " ";
+            width: 3px;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            position: absolute;
+          }
+
+          .toast--success .toast__icon > svg {
+            color: #1bf7a8;
+          }
+
+          .toast--success::before {
+            background: #1bf7a8;
+          }
+
+          .toast--error::before {
+            background: #e81e32;
+          }
+
+          .toast--error .toast__icon > svg {
+            color: #e81e32;
+          }
+        </style>
+      `
+
+      static createToast = ({type, title, message}) => {
+        const toast = document.createElement('fc-toast');
+
+        toast.setAttribute('data-type', type);
+        toast.setAttribute('data-title', title);
+        toast.setAttribute('data-message', message);
+
+        return toast;
+      }
+
+      static createSuccessToast(args) {
+        return fc__Toast.createToast({ title: "Success!", ...args, type: fc__Toast.SUCCESS });
+      }
+
+      static createErrorToast(args) {
+        return fc__Toast.createToast({ title: "Error", ...args, type: fc__Toast.ERROR });
+      }
+
+      constructor() {
+        super();
+        this.timeout = fc__Toast.TIMEOUT;
+
+        const shadowRoot = this.attachShadow({mode: 'open'});
+        shadowRoot.innerHTML = `
+          ${fc__Toast.STYLE_MARKUP}
+          ${fc__Toast.TOAST_MARKUP}
+        `;
+      }
+
+      stopTimeout = () => {
+          clearTimeout(this.timeoutId);
+      };
+
+      hide = () => {
+        this.stopTimeout();
+        this.dispatchEvent(new CustomEvent('hide'));
+        this.remove();
+      };
+
+      startTimeout = () => {
+        this.timeoutId = setTimeout(this.hide, this.timeout);
+      };
+
+      get toastElement() {
+        return this.shadowRoot.querySelector('.toast');
+      }
+
+      get iconElement() {
+        return this.shadowRoot.querySelector('.toast__icon');
+      }
+
+      get titleElement() {
+        return this.shadowRoot.querySelector('.toast__title');
+      }
+
+      get messageElement() {
+        return this.shadowRoot.querySelector('.toast__message');
+      }
+
+      get closeButtonElement() {
+        return this.shadowRoot.querySelector('.toast__close-button');
+      }
+
+      set type(type) {
+        this.toastElement.classList.add(`toast--${type}`);
+        this.iconElement.innerHTML = fc__Toast.ICONS_MAP[type];
+      }
+
+      set title(title) {
+        this.titleElement.textContent = title;
+      }
+
+      set message(message) {
+        this.messageElement.textContent = message;
+      }
+
+      attributeChangedCallback(attribute, oldValue, newValue) {
+        this[attribute.replace('data-', '')] = newValue;
+      }
+
+      connectedCallback() {
+        const {toastElement, closeButtonElement, stopTimeout, startTimeout, hide} = this
+
+        toastElement.addEventListener("mouseenter", stopTimeout);
+        toastElement.addEventListener("mouseleave", startTimeout);
+        closeButtonElement.addEventListener('click', hide);
+
+        startTimeout();
+      }
+    }
+    customElements.define('fc-toast', fc__Toast);
+
+    fc__getToastContainer = () => {
+      const containerClass = "fc--toast__container";
+
+      const appendContainer = () => {
+      const toastContainer = document.createElement("div");
+      toastContainer.classList.add(containerClass);
+
+      const form = document.getElementsByClassName(FC__CLASSES.FC_FORM)[0];
+      form.appendChild(toastContainer);
+      return toastContainer;
+      };
+
+      return (
+        document.getElementsByClassName(containerClass)[0] ??
+        appendContainer()
+      );
+    };
+
+    const fc__showToast = async ({type, title, message}) => {
+      return new Promise((resolve) => {
+        const toast = fc__Toast.createToast({ type, title, message });
+
+        toast.addEventListener('hide', function handleHide() {
+          resolve();
+          toast.removeEventListener('hide', handleHide)
+        });
+
+        fc__getToastContainer().appendChild(toast);
+      })
+    }
+
+    const fc__showSuccessToast = ({ message }) =>
+      fc__showToast({ type: fc__Toast.SUCCESS, title: 'Success!', message });
+    const fc__showErrorToast = ({ message }) =>
+      fc__showToast({ type: fc__Toast.ERROR, title: 'Error' , message });
+
+    const fc__isInIframe = () => {
+      try {
+        return window.self !== window.top;
+      } catch (e) {
+        return true;
+      }
+    };
+
+    function fc__handleCancelForm() {
+      const urlDestination = "";
+      const isInIframe = fc__isInIframe();
+
+      if(isInIframe) {
+        window.open(urlDestination, '_blank');
+      }
+      else {
+        window.location.href = urlDestination;
+      }
+    }
+
+    async function fc__handleSubmit(formData, event) {
+      event.preventDefault();
+
+      const isRecaptcha = $(FC__SELECTORS.RECAPTCHA_ERROR).length > 0;
+
+      if (isRecaptcha && grecaptcha.getResponse() == ""){
+        $(FC__SELECTORS.RECAPTCHA_ERROR).show();
+        $(FC__SELECTORS.RECAPTCHA_ERROR).parent().parent().addClass("fc--block-error");
+        return false;
+      }
+
+      $(FC__SELECTORS.SUBMIT_BUTTON).attr("disabled", true);
+      $(FC__SELECTORS.SUBMIT_BUTTON).css('pointer-events', 'none');
+      $(FC__SELECTORS.SUBMIT_TEXT).hide();
+      $(FC__SELECTORS.LOADING_INDICATOR).show();
+
+      try {          const body = new URLSearchParams(new FormData(formData));
+const response = await fetch('https://app-dev.goacoustic.com/content/api/delivery/v1/contact/2029601', {
+           method: 'POST',
+           body: body,
+        });
+        const isConfirmationPageOn = true;
+        const urlDestination = "";
+        if(response.ok){
+          if (isConfirmationPageOn) {
+            window.location.href = `${window.location.href}?rcPage=confirmation`;
+          } else {
+            await fc__showSuccessToast({ message: FC__SUBMISSION_MESSAGE.SUCCESS });
+            window.location.href = urlDestination;
+          }
+        } else {
+          fc__showErrorToast({ message: FC__SUBMISSION_MESSAGE.ERROR });
+        }
+      }
+      catch (error) {
+        fc__showErrorToast({ message: FC__SUBMISSION_MESSAGE.ERROR });
+      }
+    }
+
+    function fc__toggleDropdownMenu(elem) {
+      $(elem)
+        .parents(FC__SELECTORS.DROPDOWN)
+        .toggleClass(FC__CLASSES.DROPDOWN_OPEN);
+    }
+
+    function fc__closeDropdownMenu(elem) {
+      $(elem)
+        .parents(FC__SELECTORS.DROPDOWN)
+        .removeClass(FC__CLASSES.DROPDOWN_OPEN);
+    }
+
+    function fc__openDropdownMenu(elem) {
+      $(elem)
+        .parents(FC__SELECTORS.DROPDOWN)
+        .addClass(FC__CLASSES.DROPDOWN_OPEN);
+    }
+
+    function fc__focusFirstOption(elem) {
+      $(elem)
+        .parents(FC__SELECTORS.DROPDOWN)
+        .children(FC__SELECTORS.DROPDOWN_MENU)
+        .children(FC__SELECTORS.DROPDOWN_MENU_ITEM)
+        .first()
+        .focus();
+    }
+
+    function fc__focusNextOption(elem) {
+      const options = $(elem).parent().children();
+      const nextElementIndex = options.index($(elem).next());
+
+      options
+        .slice(nextElementIndex)
+        .filter(FC__SELECTORS.DROPDOWN_MENU_ITEM)
+        .first()
+        .focus();
+    }
+
+    function fc__focusPreviousOption(elem) {
+      const options = $(elem).parents(FC__SELECTORS.DROPDOWN_MENU).children();
+      const prevElementIndex = options.index(elem);
+
+      options
+        .slice(0, prevElementIndex)
+        .filter(FC__SELECTORS.DROPDOWN_MENU_ITEM)
+        .last()
+        .focus();
+    }
+
+    function fc__focusPlaceholder(elem) {
+      $(elem)
+        .parents(FC__SELECTORS.DROPDOWN)
+        .children(FC__SELECTORS.DROPDOWN_FIELD)
+        .focus();
+    }
+
+    function fc__selectOption(elem) {
+      const value = $(elem).closest('.fc--dropdown__menu-item').attr("data-value");
+      const label = $(elem).closest('.fc--dropdown__menu-item').html();
+      const dropdown = $(elem).parents(FC__SELECTORS.DROPDOWN);
+      dropdown.children(FC__SELECTORS.DROPDOWN_SELECT).val([value]);
+      dropdown.find(FC__SELECTORS.DROPDOWN_FIELD_VALUE).html(label) ;
+    }
+
+    function fc__handleClick(event) {
+      fc__toggleDropdownMenu(event.target);
+    }
+
+    function fc__handleOptionClick(event) {
+      fc__selectOption(event.target);
+      fc__closeDropdownMenu(event.target);
+      fc__focusPlaceholder(event.target);
+    }
+
+    function fc__handleKeyDown(event) {
+      switch (event.key) {
+        case FC__KEYS.SPACE:
+        case FC__KEYS.ENTER:
+          fc__toggleDropdownMenu(event.target);
+          break;
+
+        case FC__KEYS.ARROW_DOWN:
+        case FC__KEYS.ARROW_UP:
+          fc__openDropdownMenu(event.target);
+          fc__focusFirstOption(event.target);
+          break;
+
+        case FC__KEYS.ESCAPE:
+          fc__focusPlaceholder(event.target);
+          fc__closeDropdownMenu(event.target);
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    function fc__handleOptionKeyDown(event) {
+      switch (event.key) {
+        case FC__KEYS.ARROW_DOWN:
+          fc__focusNextOption(event.target);
+          break;
+
+        case FC__KEYS.ARROW_UP:
+          fc__focusPreviousOption(event.target);
+          break;
+
+        case FC__KEYS.ESCAPE:
+          fc__closeDropdownMenu(event.target);
+          fc__focusPlaceholder(event.target);
+          break;
+
+        case FC__KEYS.ENTER:
+        case FC__KEYS.SPACE:
+          fc__selectOption(event.target);
+          fc__closeDropdownMenu(event.target);
+          fc__focusPlaceholder(event.target);
+          break;
+
+        default:
+          break;
+      }
+    }
+
+
+
+
+  function fc__phoneSearch(event) {
+      const filter = event.target.value.toUpperCase();
+      const phoneDropdown = event.target.closest('.fc--phone-dropdown');
+      const phoneDropdownMenu = phoneDropdown.querySelector('.fc--phone-dropdown__menu');
+      const phoneDropdownMenuDivider = phoneDropdown.querySelector('.fc--dropdown__menu-divider');
+      const phoneDropdownMenuItems = phoneDropdownMenu.querySelectorAll(".fc--phone-dropdown__menu-item");
+      const convertToArray = Array.from(phoneDropdownMenuItems);
+
+      phoneDropdownMenuItems.forEach((item, key) => {
+          const textValue = phoneDropdownMenuItems[key].getAttribute('data-value');
+          const getNumberValue = item.querySelector('.fc--phone-dropdown__number').textContent;
+          if (textValue.toUpperCase().indexOf(filter) > -1 || getNumberValue.indexOf(filter) > -1 ) {
+              phoneDropdownMenuItems[key].style.display = "";
+          } else {
+              phoneDropdownMenuItems[key].style.display = "none";
+          }
+      });
+      const noResultElement = phoneDropdownMenu.querySelector('.fc--phone-dropdown__menu-no-items')
+      const checkList = convertToArray.some(item => item.style.display === "");
+
+      if (!checkList && !noResultElement){
+          const noResultEl = document.createElement("p");
+          noResultEl.classList.add("fc--phone-dropdown__menu-no-items");
+          const node = document.createTextNode("No results found.");
+          phoneDropdownMenuDivider.style.display = "none";
+          noResultEl.appendChild(node);
+          phoneDropdownMenu.appendChild(noResultEl);
+      }
+      else if (checkList && noResultElement){
+          phoneDropdownMenuDivider.style.display = "";
+          noResultElement.remove();
+      }
+  }
+
+  function fc__handleBodyClick(event) {
+    $(FC__SELECTORS.DROPDOWN_OPEN)
+      .filter((_, dropdown) => !$(event.target).closest(dropdown).length)
+      .removeClass(FC__CLASSES.DROPDOWN_OPEN);
+  }
+
+  function fc__handleSelectAll(source) {
+    const checkboxes = source.parentElement.querySelectorAll('input[type="checkbox"]');
+    const toggleValue = !checkboxes[0].checked;
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = toggleValue;
+    })
+  }
+
+  function fc__handleToggle(source) {
+    const checkbox = source.querySelector('input[type="checkbox"]')
+    const labelText = source.parentNode.parentNode.querySelector('.fc--toggle-text')
+    const checkIcon = source.parentNode.querySelector('.fc--toggle-icon')
+    labelText.innerText = checkbox.checked ? source.dataset.onLabel : source.dataset.offLabel
+    checkIcon.style.visibility = checkbox.checked ? 'visible' : 'hidden';
+  }
+
+  function fc__handleDateChange(source, dateFormat) {
+    const textInput = source.parentElement.parentElement.querySelector('.fc--text-default-value');
+    const dateInputValue = source.value;
+    if(dateInputValue) {
+      const date = dateInputValue.split('-');
+      const year = date[0];
+      const month = date[1];
+      const day = date[2];
+      textInput.value = dateFormat.replace('MM', month).replace('DD', day).replace('YYYY', year);
+    } else {
+      textInput.value = '';
+    }
+  }
+
+  function fc__handleCalendarClick(source, dateFormat, requirements) {
+    const dateInput = source;
+    const textInput = source.parentElement.parentElement.querySelector('.fc--text-default-value');
+    const dateIsValid = JSON.stringify(new Date(textInput.value)) !== "null";
+
+    requirements[0]?.forEach(item => {
+        const calendarFormat = "YYYY-MM-DD";
+        if (item.selected === 'dateFrom') {
+            const {dateFrom} = item.dateFrom;
+            dateInput.min = getDate(dateFrom, calendarFormat);
+        }
+        if (item.selected === 'dateTo') {
+            const {dateTo} = item.dateTo;
+            dateInput.max = getDate(dateTo, calendarFormat);
+        }
+        if (item.selected === 'dateRange') {
+            const {dateTo, dateFrom} = item.dateRange;
+            dateInput.min = getDate(dateFrom, calendarFormat);
+            dateInput.max = getDate(dateTo, calendarFormat);
+        }
+    });
+
+    if(dateIsValid) {
+        dateInput.value = correctDateFormat(textInput.value, dateFormat);
+    } else {
+        textInput.value = '';
+        dateInput.value = '';
+    }
+  }
+  const yearReg = '([1-2][0-9][0-9][0-9]|20[0-9][0-9])';
+  const monthReg = '(0[1-9]|1[0-2])';
+  const dayReg = '(0[1-9]|1[0-9]|2[0-9]|3[0-1])';
+
+  const getRegex = format => {
+    if (format === 'DD/MM/YYYY')
+        return new RegExp(`^${dayReg}/${monthReg}/${yearReg}$`, 'g');
+    else if (format === 'MM/DD/YYYY')
+        return new RegExp(`^${monthReg}/${dayReg}/${yearReg}$`, 'g');
+    else if (format === 'YYYY/MM/DD')
+        return new RegExp(`^${yearReg}/${monthReg}/${dayReg}$`, 'g');
+    return null;
+  };
+
+  const correctNumericFormat = (value) => value < 9 ? `0${value}` : value;
+
+  function getDate (value, format) {
+    const newDateValue = new Date(value);
+    const day = correctNumericFormat(newDateValue.getDate());
+    const month = correctNumericFormat(newDateValue.getMonth() + 1);
+    const year = newDateValue.getFullYear();
+    return format.replace('MM',month).replace('DD',day).replace('YYYY',year);
+  }
+
+  function correctDateFormat (text, dateFormat) {
+    const calendarFormat = "YYYY-MM-DD";
+    const dateArr = text.split('/');
+    const formatArr = dateFormat.split('/');
+    const year = dateArr[formatArr.indexOf('YYYY')];
+    const month = dateArr[formatArr.indexOf('MM')];
+    const day = dateArr[formatArr.indexOf('DD')];
+    return calendarFormat.replace('MM',month).replace('DD',day).replace('YYYY',year);
+  }
+
+  function correctErrorMessage(errorMessage, date, format) {
+    const correctErr  = errorMessage.split(' ');
+    correctErr[correctErr.length - 1] = getDate(date, format);
+    return `${correctErr.join(' ')}.`;
+  }
+
+  function fc_dateValidationInput (input, dateValidationValue, sign, errorMessage, format) {
+    errorMessage = correctErrorMessage(errorMessage, dateValidationValue, format);
+    const newInputDate = correctDateFormat(input.value, format);
+    const correctInputDate = new Date(newInputDate).getTime()
+    const correctDateValue = new Date(dateValidationValue).getTime()
+    const checkValidation = sign ?
+            correctDateValue > correctInputDate
+            :  correctDateValue < correctInputDate;
+    if (checkValidation) {
+        setValidationError(input, errorMessage)
+    }
+  }
+
+  function fc__dateRangeValidate(input, dateFrom, dateTo, errorMessage, format) {
+      const newInputDate  = correctDateFormat(input.value, format);
+      const correctInputValue = new Date(newInputDate).getTime()
+      const correctDateFrom = new Date(dateFrom).getTime()
+      const correctDateTo = new Date(dateTo).getTime()
+      if (correctDateTo < correctInputValue || correctDateFrom > correctInputValue) {
+          setValidationError(input, errorMessage)
+      }
+  }
+
+  function fc__dateValidate(event, requirements, dateFormat) {
+    const input = event?.target;
+    if (!input.value) {
+        return;
+    }
+    if (getRegex(dateFormat).test(input.value)) {
+        requirements[0]?.forEach(item => {
+            if (item.selected === 'dateFrom') {
+                const {errorMessage, dateFrom} = item.dateFrom;
+                return fc_dateValidationInput(input, dateFrom, 'dateFrom', errorMessage, dateFormat)
+            }
+            if (item.selected === 'dateTo') {
+                const {errorMessage, dateTo} = item.dateTo;
+                return fc_dateValidationInput(input, dateTo, '', errorMessage, dateFormat)
+            }
+            if (item.selected === 'dateRange') {
+                const {errorMessage, dateFrom, dateTo} = item.dateRange;
+                return fc__dateRangeValidate(input, dateFrom, dateTo, errorMessage, dateFormat)
+            }
+        });
+    } else {
+        setValidationError(input, `Enter a date using the format ${dateFormat}`)
+    }
+  }
+
+  function fc__handleArrowClick(event, source, direction) {
+      event.preventDefault();
+      const numberInput = source.parentElement.parentElement.querySelector('input[type="number"]');
+      if(direction === 'up') {
+          numberInput.value++;
+      }
+      if(direction === 'down') {
+         numberInput.value--;
+     }
+  }
+
+ function setValidationError(input, errorMessage) {
+   input.setCustomValidity(errorMessage);
+   input.reportValidity();
+ }
+
+ function fc_specificDomainValidation(event, domain, errorMessage) {
+   const inputValue = event.target.value;
+   const regexString = `([\s]?)@${domain}`;
+   const regex = new RegExp(regexString, "g");
+   const isValid = regex.test(inputValue);
+
+   if(!isValid) {
+     setValidationError(event.target, errorMessage);
+   } else {
+     setValidationError(event.target, '');
+   }
+ }
+
+ function fc__zipCodeValidate(input, errorMessage) {
+   const isValid = /^[0-9]{5}(?:-[0-9]{4})?$/.test(input.value);
+   if (!isValid) {
+     setValidationError(input, errorMessage);
+   }
+ }
+
+ function fc__excludeCharactersValidate(input, excludeCharacters, errorMessage) {
+   const excludedCharactersArr = excludeCharacters ? excludeCharacters.split(' ') : [];
+   const isValid = !excludedCharactersArr.some(excluded => input.value.includes(excluded));
+   if (!isValid) {
+     setValidationError(input, errorMessage);
+   }
+ }
+
+ function fc__numbersOnlyValidate(input, errorMessage) {
+   const isValid = /^[0-9]+$/.test(input.value);
+   if (!isValid) {
+     setValidationError(input, errorMessage);
+   }
+ }
+
+ function fc__alphabeticalOnlyValidate(input, errorMessage) {
+   const isValid = /^[a-zA-Z]+$/.test(input.value);
+   if (!isValid) {
+     setValidationError(input, errorMessage);
+   }
+ }
+
+ function fc__maxCharactersValidate(input, maxCharacters, errorMessage) {
+   const regexString = `^.{0,${maxCharacters}}$`;
+   const regex = new RegExp(regexString);
+   const isValid = regex.test(input.value);
+   if (!isValid) {
+     setValidationError(input, errorMessage);
+   }
+ }
+
+ function fc__validate(event, requirements) {
+   const input = event?.target;
+   const allRequirements = requirements[0];
+   setValidationError(input, '');
+   if (!input.value || !allRequirements) {
+     return;
+   }
+   allRequirements.map(requirement => {
+     const selectedRequirement = requirement.selected;
+     if (selectedRequirement === 'numbersOnly') {
+       const {
+         numbersOnly: { errorMessage },
+       } = requirement;
+       fc__numbersOnlyValidate(input, errorMessage);
+     }
+     if (selectedRequirement === 'alphabeticalCharactersOnly') {
+       const {
+         alphabeticalCharactersOnly: { errorMessage },
+       } = requirement;
+       fc__alphabeticalOnlyValidate(input, errorMessage);
+     }
+     if (selectedRequirement === 'zipCode') {
+       const {
+         zipCode: { errorMessage },
+       } = requirement;
+       fc__zipCodeValidate(input, errorMessage);
+     }
+     if (selectedRequirement === 'excludeCharacters') {
+       const {
+         excludeCharacters: { excludedCharacters, errorMessage },
+       } = requirement;
+       fc__excludeCharactersValidate(input, excludedCharacters, errorMessage);
+     }
+     if (selectedRequirement === 'maxCharacters') {
+       const {
+         maxCharacters: { maxCharacters, errorMessage },
+       } = requirement;
+       const isValid = fc__maxCharactersValidate(input, maxCharacters, errorMessage);
+     }
+     return true;
+   });
+ }
+
+  document.addEventListener("DOMContentLoaded", function(event) {
+    if (window.parent.location.pathname.search('preview') !== -1) {
+      document.querySelector(".fc--submit-button").style.pointerEvents = 'none';
+    }
+
+    if (document.querySelector(FC__SELECTORS.RECAPTCHA_ERROR) && window.parent.location.pathname.search('preview') !== -1) {
+      document.querySelector(".g-recaptcha").style.display = 'none';
+    } else if (document.querySelector(".fc--recaptcha-mock")) {
+      document.querySelector(".fc--recaptcha-mock").style.display = 'none';
+    }
+  });
+
+  </script>
+
+  <!-- GLOBAL STYLES HBS --><style key="2" type="text/css">
+  .fc--form * {
+    box-sizing: border-box;
+  }
+  div,
+  p,
+  a,
+  li,
+  td {
+    -webkit-text-size-adjust: none;
+    -ms-text-size-adjust: none;
+  }
+  #outlook a {
+    padding: 0;
+  }
+
+  .fc--form {font-family:Arial, Helvetica, sans-serif;background-color:#ffffff;
+max-width: 640px;box-sizing: content-box;
+
+    box-sizing: border-box;
+    padding: 32px 32px 32px 32px;
+    margin: auto;
+    overflow-wrap: break-word;
+  }
+
+  @media screen and (max-width: 360px) {
+    .fc--form {
+      padding-top: min(24px, 32px);
+      padding-bottom: min(24px, 32px);
+      padding-left: min(24px, 32px);
+      padding-right: min(24px, 32px);
+      display: grid !important;
+    }
+  }
+
+  .fc--form h1,
+  .fc--form h2,
+  .fc--form h3,
+  .fc--form h4,
+  .fc--form h5,
+  .fc--form h6 {    font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;
+color: #13173D;    }
+
+  .fc--heading-1 {  font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;font-size: 40px;
+color: #13173D;    }
+
+  .fc--heading-2 {  font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;font-size: 32px;
+color: #13173D;    }
+
+  .fc--heading-3 {  font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;font-size: 28px;
+color: #13173D;    }
+
+  .fc--heading-4 {  font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;font-size: 24px;
+color: #13173D;    }
+
+  .fc--heading-5 {  font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;font-size: 20px;
+color: #13173D;    }
+
+  .fc--heading-6 {  font-family: Arial, Helvetica, sans-serif;
+font-weight: bold;font-size: 16px;
+color: #13173D;    }
+
+  .fc--columns {
+    display: grid;
+    row-gap: 1rem;
+  }
+
+  .fc--column-content {
+    width: auto;
+  }
+
+  .fc--columns-1 {
+    grid-template-columns: repeat(1, minmax(100%, 1fr));
+  }
+
+  .fc--columns-2 {
+    grid-template-columns: repeat(2, minmax(50%, 1fr));
+  }
+
+  .fc--columns-3 {
+    grid-template-columns: repeat(3, minmax(33.333%, 1fr));
+  }
+
+  @media screen and (max-width: 360px) {
+    .form-wrapper {
+      min-width: 360px;
+    }
+    .fc--columns-2,
+    .fc--columns-3 {
+      grid-template-columns: repeat(1, minmax(100%, 1fr));
+    }
+  }
+
+  .fc--section {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .fc--layout-2-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .fc--layout-2-col-4-8 {
+    grid-template-columns: 1fr 2fr;
+  }
+  .fc--layout-2-col-8-4 {
+    grid-template-columns: 2fr 1fr;
+  }
+  .fc--layout-3-col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .fc--layout-3-col-6-3-3 {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+  .fc--layout-3-col-3-6-3 {
+    grid-template-columns: 1fr 2fr 1fr;
+  }
+  .fc--layout-3-col-3-3-6 {
+    grid-template-columns: 1fr 1fr 2fr;
+  }
+  .fc--layout-4-col {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media screen and (max-width: 360px) {
+    .fc--section {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  @media screen and (max-width: 360px) {
+    .fc--block, .fc--section {
+      padding-right: 0 !important;
+      padding-left: 0 !important;
+    }
+
+    .fc--block__element {
+       padding-right:16px !important;
+       padding-left: 16px !important;
+     }
+  }
+
+  .fc--block-label-wrapper {
+    display: flex;
+    width: 100%;
+  }
+
+  .fc--block-label {
+    color: #5A5D77;
+    margin-bottom: 8px;
+    font-size: 12px;
+    font-weight:regular;
+    letter-spacing: 0.32px;
+    display: inline-block;
+    vertical-align: baseline;
+    line-height: 14px;
+    min-height: 1rem;
+  }
+
+  .fc--tooltip {
+    margin-left: 0.5rem;
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
+
+  .fc--tooltip .fc--tooltip-text {
+    visibility: hidden;
+    box-shadow: 0 4px 8px 0 rgb(0 0 0 / 10%);
+    width: max-content;
+    max-width: 18rem;
+    background: #f3f3f4;
+    padding: 1rem;
+    border-radius: 0.125rem;
+    word-wrap: break-word;
+    color: #13173d;
+    text-align: left;
+    position: absolute;
+    z-index: 1;
+    right: -167px;
+    margin-top: 0.5rem;
+    left: 45px;
+    margin-left: -60px;
+    opacity: 1;
+    top: 15px;
+    font-size: 14px;
+  }
+
+  .fc--tooltip .fc--tooltip-text::after {
+    content: "";
+    position: absolute;
+    margin-top: 0.5rem;
+    bottom: 100%;
+    left: 23px;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent #f3f3f4 transparent;
+  }
+
+  .fc--tooltip:hover .fc--tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .fc--toggle-wrapper {
+    display: flex;
+    align-items: start;
+    padding: 2px;     }
+
+   .fc--toggle-switch-wrapper {
+     height: 16px;
+     display: flex;
+     align-items: center;
+  }
+
+  .fc--toggle-switch {
+    position: relative;
+    display: inline-block;
+    min-width: 3rem;
+    height: 1.5rem;
+  }
+
+  .fc--toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .fc--toggle-icon {
+    position: absolute;
+    left: 0.625rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    top: 50%;
+    -webkit-transform: translateY(-50%);
+    transform: translateY(-50%);
+    z-index: 10;
+  }
+
+  .fc--toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #898B9E;
+    -webkit-transition: transform 70ms cubic-bezier(0.2, 0, 1, 0.9), -webkit-transform 70ms cubic-bezier(0.2, 0, 1, 0.9);
+    transition: transform 70ms cubic-bezier(0.2, 0, 1, 0.9), -webkit-transform 70ms cubic-bezier(0.2, 0, 1, 0.9);
+    box-shadow: 0 0 0 1px transparent, 0 0 0 3px transparent;    }
+
+  .fc--toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 1.125rem;
+    width: 1.125rem;
+    left: 0.1875rem;
+    bottom: 0.1875rem;
+    background-color: #FFFFFF;
+    -webkit-transition: transform 70ms cubic-bezier(0.2, 0, 1, 0.9), -webkit-transform 70ms cubic-bezier(0.2, 0, 1, 0.9);
+    transition: transform 70ms cubic-bezier(0.2, 0, 1, 0.9), -webkit-transform 70ms cubic-bezier(0.2, 0, 1, 0.9);
+  }
+
+  .fc--toggle-switch:focus .fc--toggle-slider {  outline-color:#29AB87;
+outline-width:1px;
+outline-style: solid;    }
+
+  input:checked+.fc--toggle-slider {
+    background-color: #29AB87;
+  }
+
+  input:focus+.fc--toggle-slider {
+    box-shadow: 0 0 1px #29ab87;
+  }
+
+  input:checked+.fc--toggle-slider:before {
+    -webkit-transform: translateX(1.5rem);
+    -ms-transform: translateX(1.5rem);
+    transform: translateX(1.5rem);
+  }
+
+  input:disabled+.fc--toggle-slider {
+    background-color: #E6E7E9;
+    border-color: #B6B6BC;
+  }
+
+  .fc--toggle-slider.fc--round {  border-radius: 12px 12px 12px 12px;    }
+
+  .fc--toggle-slider.fc--round:before {
+    border-radius: 50%;
+  }
+
+  .fc--toggle-text {
+    position: relative;
+    margin-left: 0.5rem;
+    overflow: auto;
+    word-break: break-word;font-family:Arial, Helvetica, sans-serif;font-size:14px;color:#13173D;
+line-height: 16px; 
+letter-spacing: 0.16px;
+  }
+
+  .fc--input {  background-color: #F3F3F4;      padding: 12px 16px 12px 16px;min-height: 16px;border: none;
+border-radius: 0px 0px 0px 0px;  font-weight: regular; 
+font-size: 14px;
+color: #13173D;font-family:Arial, Helvetica, sans-serif;      width: 100%;     }
+
+  .fc--input::placeholder {  color: #B8B9C5;    }
+
+  .fc--input:focus {  outline-color:#29AB87;
+outline-width:1px;
+outline-style: solid;    }
+
+  .fc--input:disabled {
+    background: #E6E7E9;
+    border-color: #E9E9E9;
+    color: #B6B6BC;
+  }
+
+  .fc--checkbox {
+    display: block;
+    position: relative;
+    padding-left: 30px;
+    padding-right: 1rem;
+    padding-top: 1px;
+    margin-bottom: 0;
+    margin-left: 5px;font-family:Arial, Helvetica, sans-serif;font-size:14px;color:#13173D;
+line-height: 16px; 
+letter-spacing: 0.16px;
+  }
+
+  .fc--checkbox input {
+    position: absolute;
+    z-index: -1;
+    opacity: 0;
+  }
+
+  .fc--checkbox-indicator {
+    position: absolute;
+    top: 2px;
+    left: 0;
+    height: 16px;
+    width: 16px;
+    background: #FFFFFF;    border-width: 2px;
+  border-style: solid;
+  border-color: #5A5D77;
+border-radius: 0px 0px 0px 0px;    }
+  .fc--checkbox:hover .fc--checkbox-indicator {
+    box-shadow: 0px 0px 2px 0px;
+  }
+  .fc--checkbox-indicator:focus {  outline-color:#29AB87;
+outline-width:1px;
+outline-style: solid;    }
+
+  .fc--checkbox input:checked~.fc--checkbox-indicator {
+    background: #5A5D77;
+    border-color: #5A5D77;
+  }
+
+  .fc--checkbox input:disabled~.fc--checkbox-indicator {
+    background: #B6B6BC;
+    opacity: 0.6;
+    border-color: #ffffff;
+  }
+
+  .fc--checkbox-indicator:after {
+    box-sizing: unset;
+    content: '';
+    position: absolute;
+    display: none;
+  }
+
+  .fc--checkbox input:checked~.fc--checkbox-indicator:after {
+    display: block;
+  }
+
+  .fc--checkbox-label .fc--checkbox-indicator:after {
+    left: 5px;
+    top: 1px;
+    width: 3px;
+    height: 8px;
+    border: solid #ffffff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .fc--checkbox-label input:disabled~.fc--checkbox-indicator:after {
+    border-color: #7b7b7b;
+  }
+  .fc--checkbox-label.fc--checkbox-select-all {
+    margin-bottom: 16px;
+  }
+
+  .fc--checkbox-value {font-family:Arial, Helvetica, sans-serif;font-size:14px;color:#13173D;
+line-height: 16px; 
+letter-spacing: 0.16px;
+    word-break: break-word;
+    white-space: break-spaces;
+  }
+
+  .fc--radio input[type=radio] {
+    visibility: hidden;
+    pointer-events: none;
+    position: absolute;
+  }
+  .fc--radio.fc--radio-label {
+    align-items: baseline;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    margin-left: 5px;
+    margin-bottom: 0;
+    padding-right: 1rem;
+  }
+  .fc--radio-indicator {
+    background: #FFFFFF;
+    border-radius: 50%;    border-width: 2px;
+  border-style: solid;
+  border-color: #5A5D77;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    height: 1rem;
+    justify-content: center;
+    justify-self: start;
+    position: relative;
+    width: 1rem;
+    min-width: 1rem;
+  }
+  .fc--radio-value {
+    margin-left: 14px;font-family:Arial, Helvetica, sans-serif;font-size:14px;color:#13173D;
+line-height: 16px; 
+letter-spacing: 0.16px;
+    word-break: break-word;
+    white-space: break-spaces;
+  }
+  .fc--radio:hover .fc--radio-indicator {
+    box-shadow: 0px 0px 2px 0px;
+  }
+
+  .fc--radio input:disabled ~ .fc--radio-indicator {
+    background: #B6B6BC;
+    opacity: 0.6;
+    border-color: #ffffff;
+  }
+  .fc--radio input ~ .fc--radio-indicator::before {
+    align-self: center;
+    border-radius: 50%;
+    content: '';
+    height: 0.5rem;
+    justify-self: center;
+    width: 0.5rem;
+  }
+  .fc--radio input:checked ~ .fc--radio-indicator::before {
+    background: #5A5D77;
+  }
+  .fc--radio input:checked ~ .fc--radio-indicator {
+    border-color: #5A5D77;
+  }
+
+  .fc--radio-indicator:focus {  outline-color:#29AB87;
+outline-width:1px;
+outline-style: solid;    }
+
+  .fc--radio,
+  .fc--checkbox {     }
+
+  .fc--dropdown {  font-weight: regular; 
+font-size: 14px;
+color: #13173D;font-family:Arial, Helvetica, sans-serif;       position: relative;
+  }
+
+  .fc--dropdown > select {
+    visibility: hidden;
+    position: absolute;
+  }
+
+  .fc--dropdown__field-value {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    flex: 0 1 auto;
+  }
+
+  .fc--dropdown__field > img {
+    flex: 0 1 auto;
+    transition: transform 70ms linear;
+    height: 14px;
+  }
+
+  .fc--dropdown__menu {
+    display: none;  background-color: #F3F3F4;      box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.3);
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-y: auto;
+    max-height: 15rem;
+  }
+
+  .fc--dropdown__field,
+  .fc--dropdown__menu-item {  background-color: #F3F3F4;  font-weight: regular; 
+font-size: 14px;
+color: #13173D;font-family:Arial, Helvetica, sans-serif;min-height: 16px;       outline: 2px solid transparent;
+    outline-offset: -2px;
+    width: 100%;
+    cursor: pointer;
+  }
+
+  .fc--dropdown__menu-item:hover {
+    background: #E7E8EC;
+  }
+
+  .fc--dropdown__menu-item-disabled {
+    cursor: not-allowed;
+    color: #b6b6bc;
+  }
+
+  .fc--dropdown__field {  padding-top: 10px;
+padding-bottom: 10px;
+padding-left: 14px;
+padding-right: 14px;border: none;
+border-radius: 0px 0px 0px 0px;      display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .fc--dropdown__menu-item {  padding-top: 12px;
+padding-bottom: 12px;
+padding-left: 16px;
+padding-right: 16px;    }
+
+  .fc--dropdown__field:focus,
+  .fc--dropdown__menu-item:focus {  outline-color:#29AB87;
+outline-width:1px;
+outline-style: solid;    }
+
+  .fc--dropdown__menu-divider {
+    margin-left:16px;
+    margin-right:16px;
+    background-color:#DCDCDC;
+    height: 1px;
+    opacity: 0.5;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .fc--dropdown__menu-divider:first-child,
+  .fc--dropdown__menu-divider:last-child {
+    display: none;
+  }
+
+  .fc--dropdown--open {
+    z-index: 1;
+  }
+
+  .fc--dropdown--open > .fc--dropdown__field > img {
+    transform: rotate(180deg);
+  }
+
+  .fc--dropdown--open .fc--dropdown__menu, .fc--dropdown--open .fc--phone-search {
+    display: block;
+  }
+
+  .fc--date-wrapper {
+    display:flex;
+    position:relative;
+  }
+
+  .fc--date-wrapper div:nth-child(2) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+  }
+
+  .fc--date-wrapper div:nth-child(1) {
+    width: 100%;
+    display: flex;
+  }
+
+  .fc--date-wrapper label {
+    position: absolute;
+    display: flex;
+    right: 0;
+    margin-top: 12px;
+    margin-right: 16px;     }
+
+  .fc--date-wrapper img {
+    height: 14px;
+  }
+
+  .fc--date-wrapper input.fc--date-picker-default-value {
+    position: absolute;
+    opacity: 0;
+    top: 0;
+    margin-top: -12px;
+    right: -16px;
+    z-index: 1;
+    width: calc(16px + 14px);
+    min-width: 12px;
+    padding-left: 0;
+  }
+
+  .fc--date-wrapper input.fc--text-default-value {  text-overflow: ellipsis;
+padding-right: calc(16px + 14px);    }
+
+  .fc--date-wrapper input.fc--date-picker-default-value::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: -150%;
+    left: -150%;
+    width: 300%;
+    height: 300%;
+    cursor: pointer;
+  }
+
+  .fc--number-input-wrapper {
+    position: relative;
+    width: 100%;
+    display: flex;
+  }
+
+  .fc--number-input-wrapper input::-webkit-outer-spin-button, input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .fc--number-input-wrapper input[type=number] {
+    -moz-appearance: textfield;
+    font-family:Arial, Helvetica, sans-serif;  text-overflow: ellipsis;
+padding-right: calc(16px + 14px);    }
+
+  .fc--number-input-wrapper .fc--number__controls {
+    position: absolute;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-right: 16px;
+    height: 100%;     }
+
+  .fc--number-input-wrapper .fc--number__control-btn {
+    cursor: pointer;
+    background:none;
+    border: 0;
+    display: flex;
+    position:relative;
+  }
+
+  .fc--number-input-wrapper .fc--number__control-btn img {
+    height: calc(14px / 4);
+    position: relative;
+  }
+
+  .fc--number-input-wrapper button.fc--arrow-up {
+    padding-top: 12px;
+  }
+
+  .fc--number-input-wrapper button.fc--arrow-down {
+     padding-bottom: 12px;
+  }
+
+  .fc--number-input-wrapper .fc--arrow-up img {
+    top: 50%;
+  }
+
+  .fc--number-input-wrapper .fc--arrow-down img {
+    top: -50%;
+  }
+
+  .fc--html {
+    pointer-events: none;
+  }
+
+  .fc--html img {
+    max-width: 100%;
+  }
+
+  .fc--html a {
+    pointer-events:auto;
+    text-decoration: none;
+  }
+
+  @media screen and (max-width: 480px) {
+    .displayNone {
+      display: none !important;
+    }
+    .show-on-mobile {
+      display: block !important;
+    }
+
+    .hide-on-mobile {
+      display: none !important;
+    }
+
+    .layout-body .hide-on-desktop {
+      display: block !important;
+    }
+  }
+
+  @media screen and (min-width: 480px) {
+    .show-on-mobile {
+      display: none !important;
+    }
+
+    .hide-on-mobile {
+      display: block !important;
+    }
+
+    .layout-body .hide-on-desktop {
+      display: none !important;
+    }
+  }
+
+  .fc--no-options-warning {
+    color: #5a5d77;
+    letter-spacing: 0.32px;
+    line-height: 1rem;
+    font-size: 0.75rem;
+    font-style: italic;
+  }
+
+  .fc--toast__container {
+    left: 50%;
+    transform: translateX(-50%);
+    position: absolute;
+    width: 100%;
+    min-width: 18rem;
+    max-width: 38rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .fc--block-error {
+    border: 1px solid #ce0110;
+  }
+
+  .fc--recaptcha-error {
+    display: none;
+    color: #ce0110;
+    line-height: 1rem;
+    font-size: 0.75rem;
+    margin-top: 0.375rem;
+  }
+
+  .fc--recaptcha-mock {
+    pointer-events: none;
+  }
+
+  .fc--phone-element {
+      display: flex;
+  }
+
+  .fc--phone-dropdown {
+      margin-right: 4px;
+      min-width: 120px;
+  }
+
+  .fc--phone-default__item{
+      margin-right: 4px;
+      min-width: 100px;
+      background-color: #F3F3F4;
+      padding: 10px 14px;
+  }
+  .fc--phone-dropdown__item {
+      display: flex;
+      align-items: center;
+  }
+  .fc--phone-dropdown__flag {
+      height: 24px;
+      font-size: 28px;
+      line-height: 100%;
+      margin-right: 8px;
+  }
+  .fc--phone-dropdown__number{
+      font-size: 14px;
+  }
+  .fc--phone-dropdown__field {
+       height: 100%;
+  }
+  .fc--phone-dropdown__menu{
+      max-height: 20rem;
+      margin-top: 45px;
+  }
+
+  .fc--phone-search{
+      display: none;
+      background: #F3F3F4;
+      padding: 4px 4px 0 8px;
+      position: absolute;
+      width: 100%;
+      top: 44px;
+      min-width: 120px;
+      z-index: 10;
+  }
+  .fc--phone-search__input {
+      border: none;
+      font-size: 14px;
+      width: 100%;
+      padding: 10px 10px 10px 32px;
+      background: #FFFFFF url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' class='bi bi-search' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'%3E%3C/path%3E%3C/svg%3E") no-repeat 10px center;
+      background-size: 14px 14px;
+  }
+
+  .fc--phone-search__input:focus {
+      outline: 2px solid #29ab87;
+      outline-offset: -2px;
+  }
+  .fc--phone-search__input::placeholder {
+      font-size: 14px;
+      line-height: 18px;
+      letter-spacing: 0.16px;
+      color: #B8B9C5;
+  }
+  .fc--phone-dropdown__menu-divider{
+      margin-top: 5px;
+      margin-left:16px;
+      margin-right:16px;
+      background-color:#DCDCDC;
+      height: 1px;
+      opacity: 0.5;
+      margin-bottom: 0;
+  }
+  .fc--phone-dropdown__menu-no-items{
+      margin: 0;
+      padding: 8px 6px;
+      line-height: 18px;
+      letter-spacing: 0.16px;
+  }
+</style>
+<!-- GLOBAL STYLE HBS END -->
+
+</head>
+<body style="margin: 0;">
+    <style type="text/css">
+      .fc--required::after{ content: "*"}
+  </style>
+
+
+<form class="fc--form layout-body" onsubmit="fc__handleSubmit(this, event)">
+  <input type="hidden" name="x-acoustic-content-id" value="332979502257504256">
+  <input type="hidden" name="x-acoustic-api-url" value="https://content-us-1-dev.content-cms.com/api/3c4d620d-2ac5-4a0e-8a5e-2d646183bc7a/">
+  <input type="hidden" name="x-acoustic-instance-id" value="QA1">
+<section class="fc--form__controls">
+    
+<div data-is-section="true"  class="fc--section fc--layout-1-col
+" style=" background-color: transparent;padding: 0px 0px 0px 0px;
+width:100%;
+grid-gap:30px;">
+    <div data-is-cell="true">
+            <div >
+      
+<div class="fc--block" style="padding: 0px 0px 0px 0px;
+">
+<div class="fc--block__element"
+  style="background-color: transparent;padding: 16px 16px 16px 16px;
+border-radius: 0px 0px 0px 0px;
+width: auto;
+box-sizing: content-box;
+"><div class="fc--block-label-wrapper">
+  <label class="fc--block-label fc--optional"for="Email">Email
+  </label>
+
+</div>
+  <input class="fc--input" autocomplete="off"id="Email"name="Email" placeholder="youremail@domain.com" />
+</div>
+</div>
+    </div>
+
+</div>
+</div>
+
+    
+<div data-is-section="true"  class="fc--section fc--layout-1-col
+" style=" background-color: transparent;padding: 0px 0px 0px 0px;
+width:100%;
+grid-gap:30px;">
+    <div data-is-cell="true">
+            <div >
+      
+<div class="fc--block" style="padding: 0px 0px 0px 0px;
+">
+<div class="fc--block__element"
+  style="background-color: transparent;padding: 16px 16px 16px 16px;
+border-radius: 0px 0px 0px 0px;
+width: auto;
+box-sizing: content-box;
+"><div class="fc--block-label-wrapper">
+  <label class="fc--block-label fc--optional">Text input
+  </label>
+
+</div>
+  <input class="fc--input"
+autocomplete="off" placeholder="Placeholder text"id="TextTest"name="TextTest" value="">
+</div>
+</div>
+
+    </div>
+
+</div>
+</div>
+
+</section>
+  <section data-selectable="true" data-element-key="formButtons" class="fc--form__actions">
+    <style key="10" type="text/css">
+.fc--form {
+display: flex;
+flex-direction:column
+;
+}
+
+.fc--form__controls {
+flex: 1 1 auto;
+}
+
+.fc--form__actions {
+flex: 0 0 auto;
+}
+.fc--form-controls-wrapper {
+display:flex;
+align-items:center;
+flex-direction:row
+;
+gap: 16px;
+}
+.fc--align-left-horizontally,
+.fc--align-top-vertically {
+justify-content:start;
+}
+.fc--align-center-horizontally,
+.fc--align-center-vertically {
+justify-content:center;
+}
+.fc--align-right-horizontally,
+.fc--align-bottom-vertically {
+justify-content:end;
+}
+.fc--control-button {font-family:Arial, Helvetica, sans-serif !important;font-size:14px;font-weight:regular;padding: 16px 48px 16px 48px;
+border-radius: 0px 0px 0px 0px;
+width: 100%;
+width: auto;box-sizing: content-box;
+
+box-sizing: border-box;
+
+}
+.fc--submit-button {
+background-color:#047970;
+color:#FFFFFF;border:none;}
+.fc--submit-button:hover{
+background-color: #065B54;
+color:#FFFFFF;border:none;}
+.fc--cancel-button{
+background-color: ;
+color:#047970;border:none;}
+.fc--cancel-button:hover{
+background-color: #065B54;
+color:#FFFFFF;border:none;}
+@media screen and (max-width: 360px) {
+.fc--form-controls-wrapper {
+ flex-direction: column-reverse;
+}
+.fc--control-button {
+  width: 100%;
+  box-sizing: border-box;
+}
+}
+
+.fc--loading-basic-wrapper .fc--loading__svg circle {
+  stroke-linecap: round;
+}
+
+.fc--loading__svg{    
+display: none;
+text-rendering: optimizeLegibility;
+-webkit-font-smoothing: antialiased;
+font: inherit;
+box-sizing: border-box;
+fill: transparent;
+-webkit-animation-name: rotate;
+animation-name: rotate;
+-webkit-animation-duration: 690ms;
+animation-duration: 690ms;
+-webkit-animation-timing-function: linear;
+animation-timing-function: linear;
+-webkit-animation-fill-mode: forwards;
+animation-fill-mode: forwards;
+-webkit-animation-iteration-count: infinite;
+animation-iteration-count: infinite;
+width: 14px;
+}
+
+.fc--loading__svg circle {
+  stroke-width: 15;
+  stroke-linecap: butt;
+  stroke-dasharray: 240;
+}
+
+.fc--loading__stroke {
+  stroke: #FFFFFF;
+  stroke-dashoffset: 40;
+}
+
+@keyframes rotate {
+0% {
+    transform: rotate(0deg);
+}
+100% {
+    transform: rotate(360deg);
+}
+}
+</style>
+
+<div class="fc--block" style="width: 100%;
+height: 100%;
+padding: 0px 0px 0px 0px;
+">
+<div class="fc--form-controls-wrapper  fc--align-center-horizontally
+" 
+  style="width: 100%;
+height: 100%;
+padding: 16px 16px 16px 16px;
+border-radius: 0px 0px 0px 0px;
+"
+>
+  <button 
+    class="fc--control-button fc--submit-button"
+  >
+    <div class="fc--submit-text">
+    Submit
+    </div>    <svg class="fc--loading__svg" viewBox="-50 -50 100 100">
+      <circle class="fc--loading__stroke" cx="0" cy="0" r="37.5"></circle>
+  </svg>
+  </button>
+</div>
+</div>
+
+  </section>
+</form>
+
+</body>
+</html>
